@@ -5,10 +5,11 @@ import { useAuth } from "../context/AuthContext";
 const RegisterPage = () => {
   const navigate = useNavigate();
   const { user, register, loading } = useAuth();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", phone: "" });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
 
   if (user) {
     return <Navigate to="/dashboard" replace />;
@@ -28,6 +29,18 @@ const RegisterPage = () => {
     setPasswordError("");
   };
 
+  const onPhoneChange = (event) => {
+    const nextPhone = event.target.value.replace(/\D/g, "").slice(0, 10);
+    setForm((prev) => ({ ...prev, phone: nextPhone }));
+
+    if (nextPhone.length > 0 && nextPhone.length !== 10) {
+      setPhoneError("Phone number must be 10 digits");
+      return;
+    }
+
+    setPhoneError("");
+  };
+
   const onSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -35,7 +48,11 @@ const RegisterPage = () => {
       setPasswordError("Password must be at least 8 characters");
       return;
     }
-    const response = await register(form.name, form.email, form.password);
+    if (!/^\d{10}$/.test(form.phone)) {
+      setPhoneError("Phone number must be 10 digits");
+      return;
+    }
+    const response = await register(form.name, form.email, form.password, form.phone);
     if (response.success) {
       navigate("/dashboard");
       return;
@@ -91,6 +108,24 @@ const RegisterPage = () => {
           </div>
 
           <div className="mt-4">
+            <label className="mb-1 block text-sm text-slate-200" htmlFor="phone">
+              Phone
+            </label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              inputMode="numeric"
+              value={form.phone}
+              onChange={onPhoneChange}
+              required
+              placeholder="Enter phone number"
+              className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white outline-none transition-all duration-300 placeholder:text-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400"
+            />
+            {phoneError ? <p className="mt-1 text-sm text-red-400">{phoneError}</p> : null}
+          </div>
+
+          <div className="mt-4">
             <label className="mb-1 block text-sm text-slate-200" htmlFor="password">
               Password
             </label>
@@ -119,7 +154,7 @@ const RegisterPage = () => {
 
           <button
             type="submit"
-            disabled={loading || form.password.length < 8}
+            disabled={loading || form.password.length < 8 || form.phone.length !== 10}
             className="mt-6 w-full rounded-xl bg-indigo-600 px-3 py-2 font-semibold text-white transition-all duration-300 hover:scale-105 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Creating..." : "Register"}

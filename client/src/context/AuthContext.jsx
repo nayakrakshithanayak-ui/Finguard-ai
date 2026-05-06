@@ -30,10 +30,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, phone) => {
     setLoading(true);
     try {
-      const { data } = await api.post("/auth/register", { name, email, password });
+      const { data } = await api.post("/auth/register", { name, email, password, phone });
       localStorage.setItem("finguard_token", data.token);
       localStorage.setItem("finguard_user", JSON.stringify(data.user));
       setUser(data.user);

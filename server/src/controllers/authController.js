@@ -14,18 +14,24 @@ const buildAuthResponse = (user) => ({
     id: user._id.toString(),
     _id: user._id,
     name: user.name,
-    email: user.email
+    email: user.email,
+    phone: user.phone
   }
 });
 
 export const registerUser = async (req, res, next) => {
   try {
+    const { password } = req.body ?? {};
     const name = req.body?.name?.trim();
     const email = normalizeEmail(req.body?.email);
-    const password = req.body?.password;
+    const phone = req.body?.phone?.trim();
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email and password are required." });
+    if (!name || !email || !password || !phone) {
+      return res.status(400).json({ message: "Name, email, password and phone are required." });
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      return res.status(400).json({ message: "Phone number must be 10 digits" });
     }
 
     const existingUser = await User.findOne({ email });
@@ -33,7 +39,7 @@ export const registerUser = async (req, res, next) => {
       return res.status(400).json({ message: "User with this email already exists." });
     }
 
-    const user = await User.create({ name, email, password });
+    const user = await User.create({ name, email, password, phone });
     return res.status(201).json(buildAuthResponse(user));
   } catch (error) {
     return next(error);

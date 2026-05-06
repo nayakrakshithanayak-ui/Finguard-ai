@@ -28,6 +28,18 @@ test("validateTransactionPayload rejects invalid type", () => {
   assert.equal(result.error, "Type must be either income or expense.");
 });
 
+test("validateTransactionPayload preserves amounts used for auto-splitting", () => {
+  const result = validateTransactionPayload({
+    amount: "40000",
+    type: "expense",
+    category: "Travel",
+    date: "2026-04-15"
+  });
+
+  assert.equal(result.error, undefined);
+  assert.equal(result.parsedAmount / 4, 10000);
+});
+
 test("getFraudReason flags high amount transactions", () => {
   const transactions = [
     { amount: 4000, category: "Food", date: "2026-04-01" },

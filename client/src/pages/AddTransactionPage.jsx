@@ -18,6 +18,9 @@ import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import api from "../services/api";
 
+const AUTO_SPLIT_THRESHOLD = 5000;
+const MANDATORY_CATEGORIES = ["Food", "Health", "Bills"];
+
 const CATEGORY_OPTIONS = {
   income: [
     { label: "Salary", icon: BadgeIndianRupee, iconClass: "text-green-400", iconBgClass: "bg-green-400/10" },
@@ -56,7 +59,11 @@ const AddTransactionPage = ({ darkMode, setDarkMode }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(isEditMode);
+  const [categoryError, setCategoryError] = useState("");
   const categoryOptions = CATEGORY_OPTIONS[form.type];
+  const parsedAmount = Number(form.amount);
+  const isLargeExpenseFlow =
+    !isEditMode && form.type === "expense" && !Number.isNaN(parsedAmount) && parsedAmount >= AUTO_SPLIT_THRESHOLD;
 
   useEffect(() => {
     if (!isEditMode) {
@@ -83,6 +90,17 @@ const AddTransactionPage = ({ darkMode, setDarkMode }) => {
     fetchTransaction();
   }, [id, isEditMode]);
 
+  useEffect(() => {
+    if (!isLargeExpenseFlow) {
+      setCategoryError("");
+      return;
+    }
+
+    if (MANDATORY_CATEGORIES.includes(form.category)) {
+      setForm((prev) => ({ ...prev, category: "" }));
+    }
+  }, [form.category, isLargeExpenseFlow]);
+
   const onChange = (event) => {
     const { name, value } = event.target;
 
@@ -94,7 +112,10 @@ const AddTransactionPage = ({ darkMode, setDarkMode }) => {
       return {
         ...prev,
         type: value,
-        category: CATEGORY_OPTIONS[value].some((option) => option.label === prev.category)
+        category:
+          value === "expense" && MANDATORY_CATEGORIES.includes(prev.category)
+            ? ""
+            : CATEGORY_OPTIONS[value].some((option) => option.label === prev.category)
           ? prev.category
           : ""
       };
@@ -105,16 +126,33 @@ const AddTransactionPage = ({ darkMode, setDarkMode }) => {
     setForm((prev) => ({
       ...prev,
       type: value,
-      category: CATEGORY_OPTIONS[value].some((option) => option.label === prev.category)
+      category:
+        value === "expense" && MANDATORY_CATEGORIES.includes(prev.category)
+          ? ""
+          : CATEGORY_OPTIONS[value].some((option) => option.label === prev.category)
         ? prev.category
         : ""
     }));
+    setCategoryError("");
   };
 
   const setCategory = (value) => {
+    if (isLargeExpenseFlow) {
+      if (MANDATORY_CATEGORIES.includes(value)) {
+        return;
+      }
+
+      if (form.category && form.category !== value) {
+        setCategoryError("Select only one additional category");
+        return;
+      }
+
+      setCategoryError("");
+    }
+
     setForm((prev) => ({
       ...prev,
-      category: value
+      category: prev.category === value ? "" : value
     }));
   };
 
@@ -122,8 +160,14 @@ const AddTransactionPage = ({ darkMode, setDarkMode }) => {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setCategoryError("");
 
     try {
+      if (isLargeExpenseFlow && !form.category) {
+        setCategoryError("Select only one additional category");
+        return;
+      }
+
       const payload = {
         amount: Number(form.amount),
         type: form.type,
@@ -133,11 +177,21 @@ const AddTransactionPage = ({ darkMode, setDarkMode }) => {
 
       if (isEditMode) {
         await api.put(`/transactions/${id}`, payload);
+        navigate("/dashboard");
       } else {
-        await api.post("/transactions", payload);
+        const { data } = await api.post("/transactions", payload);
+        navigate("/dashboard", {
+          state: data?.splitApplied
+            ? {
+                toast: {
+                  title: "Transaction Saved",
+                  message: "Amount automatically distributed across essential categories",
+                  tone: "success"
+                }
+              }
+            : null
+        });
       }
-
-      navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || `Unable to ${isEditMode ? "update" : "create"} transaction.`);
     } finally {
@@ -229,9 +283,16 @@ const AddTransactionPage = ({ darkMode, setDarkMode }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-300">Category</label>
+                  {isLargeExpenseFlow ? (
+                    <div className="mt-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+                      <p className="font-semibold">Essential categories are locked in for this large expense.</p>
+                      <p className="mt-1 text-emerald-100/80">Choose one additional category to complete the split.</p>
+                    </div>
+                  ) : null}
                   <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {categoryOptions.map((option) => {
-                      const isSelected = form.category === option.label;
+                      const isMandatorySelected = isLargeExpenseFlow && MANDATORY_CATEGORIES.includes(option.label);
+                      const isSelected = isMandatorySelected || form.category === option.label;
                       const Icon = option.icon;
 
                       return (
@@ -239,11 +300,12 @@ const AddTransactionPage = ({ darkMode, setDarkMode }) => {
                           key={option.label}
                           type="button"
                           onClick={() => setCategory(option.label)}
+                          disabled={isMandatorySelected}
                           className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all ${
                             isSelected
                               ? "border-indigo-400/70 bg-indigo-500/20 text-white shadow-lg shadow-indigo-950/20"
                               : "border-white/15 bg-white/5 text-slate-200 hover:scale-105 hover:bg-slate-800"
-                          }`}
+                          } ${isMandatorySelected ? "cursor-not-allowed opacity-90" : ""}`}
                         >
                           <span
                             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 ${
@@ -252,12 +314,19 @@ const AddTransactionPage = ({ darkMode, setDarkMode }) => {
                           >
                             <Icon className="h-5 w-5" />
                           </span>
-                          <span className="text-sm font-semibold">{option.label}</span>
+                          <span className="text-sm font-semibold">
+                            {option.label}
+                            {isMandatorySelected ? " (Required)" : ""}
+                          </span>
                         </button>
                       );
                     })}
                   </div>
-                  {!form.category ? (
+                  {categoryError ? (
+                    <p className="mt-2 text-xs text-red-300">{categoryError}</p>
+                  ) : isLargeExpenseFlow && !form.category ? (
+                    <p className="mt-2 text-xs text-slate-300">Select one additional category to complete all 4 splits.</p>
+                  ) : !form.category ? (
                     <p className="mt-2 text-xs text-slate-400">Choose a category to continue.</p>
                   ) : null}
                 </div>

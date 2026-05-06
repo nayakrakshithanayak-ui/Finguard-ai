@@ -10,7 +10,7 @@ import {
 } from "chart.js";
 import { ArrowDownRight, IndianRupee, Wallet } from "lucide-react";
 import { Bar, Doughnut } from "react-chartjs-2";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import SummaryCard from "../components/SummaryCard";
@@ -44,13 +44,14 @@ const escapeCSVCell = (value) => {
 
 const DashboardPage = ({ darkMode, setDarkMode }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [transactions, setTransactions] = useState([]);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeFilterIndex, setActiveFilterIndex] = useState(0);
   const [search, setSearch] = useState("");
-  const [toast, setToast] = useState({ visible: false, message: "" });
+  const [toast, setToast] = useState({ visible: false, title: "", message: "", tone: "warning" });
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const filterMenuRef = useRef(null);
@@ -71,12 +72,29 @@ const DashboardPage = ({ darkMode, setDarkMode }) => {
   }, []);
 
   useEffect(() => {
+    const nextToast = location.state?.toast;
+    if (!nextToast) {
+      return;
+    }
+
+    setToast({
+      visible: true,
+      title: nextToast.title || "Success",
+      message: nextToast.message || "",
+      tone: nextToast.tone || "success"
+    });
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
     const fraud = transactions.some((transaction) => getFraudReason(transaction, transactions));
     if (fraud && !hasShownFraudAlertRef.current) {
       hasShownFraudAlertRef.current = true;
       setToast({
         visible: true,
-        message: "\u26A0 Suspicious transaction detected. Review highlighted transactions."
+        title: "Fraud Alert",
+        message: "\u26A0 Suspicious transaction detected. Review highlighted transactions.",
+        tone: "warning"
       });
     }
 
@@ -292,6 +310,18 @@ const DashboardPage = ({ darkMode, setDarkMode }) => {
 
   const chartTextColor = "#e2e8f0";
   const chartGridColor = "rgba(148, 163, 184, 0.18)";
+  const toastToneClasses =
+    toast.tone === "success"
+      ? {
+          border: "border-emerald-300/20",
+          icon: "text-emerald-400",
+          title: "text-emerald-100"
+        }
+      : {
+          border: "border-yellow-300/20",
+          icon: "text-yellow-400",
+          title: "text-white"
+        };
   const filterOptions = [
     { value: "all", label: "All" },
     { value: "income", label: "Income" },
@@ -375,11 +405,11 @@ const DashboardPage = ({ darkMode, setDarkMode }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-slate-900 to-black text-white">
       {toast.visible ? (
-        <div className="fixed right-6 top-6 z-50 max-w-sm rounded-xl border border-yellow-300/20 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-lg">
+        <div className={`fixed right-6 top-6 z-50 max-w-sm rounded-xl border bg-slate-900/95 p-4 shadow-2xl backdrop-blur-lg ${toastToneClasses.border}`}>
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 text-yellow-400">{"\u26A0"}</span>
+            <span className={`mt-0.5 ${toastToneClasses.icon}`}>{toast.tone === "success" ? "\u2713" : "\u26A0"}</span>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-white">Fraud Alert</p>
+              <p className={`text-sm font-semibold ${toastToneClasses.title}`}>{toast.title}</p>
               <p className="mt-1 text-sm text-slate-300">{toast.message}</p>
             </div>
             <button
