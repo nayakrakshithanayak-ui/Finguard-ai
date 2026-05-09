@@ -6,6 +6,7 @@ const generateToken = (userId) =>
     expiresIn: "7d"
   });
 
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8}$/;
 const normalizeEmail = (email = "") => email.trim().toLowerCase();
 
 const buildAuthResponse = (user) => ({
@@ -32,6 +33,10 @@ export const registerUser = async (req, res, next) => {
 
     if (!/^\d{10}$/.test(phone)) {
       return res.status(400).json({ message: "Phone number must be 10 digits" });
+    }
+
+    if (!PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({ message: "Password format invalid" });
     }
 
     const existingUser = await User.findOne({ email });

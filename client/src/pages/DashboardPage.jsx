@@ -138,16 +138,16 @@ const DashboardPage = ({ darkMode, setDarkMode }) => {
   }, []);
 
   const totals = useMemo(() => {
-    let income = 0;
-    let expense = 0;
+    const latestIncome = transactions
+      .filter((transaction) => transaction.type === "income")
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
 
-    transactions.forEach((transaction) => {
-      if (transaction.type === "income") {
-        income += transaction.amount;
-      } else {
-        expense += transaction.amount;
-      }
-    });
+    const latestExpense = transactions
+      .filter((transaction) => transaction.type === "expense")
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
+
+    const income = latestIncome?.amount || 0;
+    const expense = latestExpense?.originalAmount || latestExpense?.amount || 0;
 
     return {
       income,

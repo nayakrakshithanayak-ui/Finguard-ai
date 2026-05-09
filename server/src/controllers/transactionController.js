@@ -44,7 +44,8 @@ export const createTransaction = async (req, res, next) => {
           [...MANDATORY_SPLIT_CATEGORIES, validation.normalizedCategory].map((category) => ({
             ...baseTransaction,
             category,
-            amount: validation.parsedAmount / 4
+            amount: validation.parsedAmount / 4,
+            originalAmount: validation.parsedAmount
           }))
         )
       : [

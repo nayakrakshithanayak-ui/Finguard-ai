@@ -2,6 +2,10 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8}$/;
+const PASSWORD_ERROR_MESSAGE =
+  "Password must be exactly 8 characters and include uppercase, lowercase, number, and special character.";
+
 const RegisterPage = () => {
   const navigate = useNavigate();
   const { user, register, loading } = useAuth();
@@ -22,8 +26,8 @@ const RegisterPage = () => {
   const onPasswordChange = (event) => {
     const nextPassword = event.target.value;
     setForm((prev) => ({ ...prev, password: nextPassword }));
-    if (nextPassword.length < 8) {
-      setPasswordError("Password must be at least 8 characters");
+    if (nextPassword && !PASSWORD_REGEX.test(nextPassword)) {
+      setPasswordError(PASSWORD_ERROR_MESSAGE);
       return;
     }
     setPasswordError("");
@@ -44,8 +48,8 @@ const RegisterPage = () => {
   const onSubmit = async (event) => {
     event.preventDefault();
     setError("");
-    if (form.password.length < 8) {
-      setPasswordError("Password must be at least 8 characters");
+    if (!PASSWORD_REGEX.test(form.password)) {
+      setPasswordError(PASSWORD_ERROR_MESSAGE);
       return;
     }
     if (!/^\d{10}$/.test(form.phone)) {
@@ -136,9 +140,9 @@ const RegisterPage = () => {
                 type={showPassword ? "text" : "password"}
                 value={form.password}
                 onChange={onPasswordChange}
-                minLength={8}
+                maxLength={8}
                 required
-                placeholder="At least 8 characters"
+                placeholder="8-character secure password"
                 className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 pr-16 text-white outline-none transition-all duration-300 placeholder:text-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400"
               />
               <button
@@ -154,7 +158,7 @@ const RegisterPage = () => {
 
           <button
             type="submit"
-            disabled={loading || form.password.length < 8 || form.phone.length !== 10}
+            disabled={loading || !PASSWORD_REGEX.test(form.password) || form.phone.length !== 10}
             className="mt-6 w-full rounded-xl bg-indigo-600 px-3 py-2 font-semibold text-white transition-all duration-300 hover:scale-105 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Creating..." : "Register"}
